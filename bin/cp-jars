@@ -1,0 +1,15 @@
+#!/bin/bash
+
+set -euo pipefail
+
+here="$(dirname "${BASH_SOURCE[0]}")"
+
+rm -f ~/src/punctual/presto-server-*/plugin/aspic/*
+
+( cat "$here"/../cp.txt; echo ) \
+  | tr : '\n' \
+  | while read -r f; do
+  cp "$f" ~/src/punctual/presto-server-*/plugin/aspic/
+done
+
+cp target/aspic-*-SNAPSHOT.jar ~/src/punctual/presto-server-*/plugin/aspic/
