@@ -11,7 +11,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.cldellow.aspic;
+package com.cldellow.aspic.spi;
 
 import com.facebook.presto.spi.ColumnHandle;
 import com.facebook.presto.spi.ColumnMetadata;
@@ -62,7 +62,8 @@ public class AspicMetadata
 
     public List<String> listSchemaNames()
     {
-        return ImmutableList.copyOf(exampleClient.getSchemaNames());
+        // TODO: figure out if we want multiple schemas, or just default?
+        return ImmutableList.copyOf(new String[] { "default"});
     }
 
     @Override

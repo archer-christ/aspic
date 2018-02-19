@@ -11,28 +11,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.cldellow.aspic;
+package com.cldellow.aspic.spi;
 
-import io.airlift.configuration.Config;
+import com.facebook.presto.spi.Plugin;
+import com.facebook.presto.spi.connector.ConnectorFactory;
+import com.google.common.collect.ImmutableList;
 
-import javax.validation.constraints.NotNull;
-
-import java.net.URI;
-
-public class AspicConfig
+public class AspicPlugin
+        implements Plugin
 {
-    private URI metadata;
-
-    @NotNull
-    public URI getMetadata()
+    @Override
+    public Iterable<ConnectorFactory> getConnectorFactories()
     {
-        return metadata;
-    }
-
-    @Config("metadata-uri")
-    public AspicConfig setMetadata(URI metadata)
-    {
-        this.metadata = metadata;
-        return this;
+        return ImmutableList.of(new AspicConnectorFactory());
     }
 }

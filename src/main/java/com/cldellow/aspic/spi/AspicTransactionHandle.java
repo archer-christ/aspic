@@ -11,18 +11,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.cldellow.aspic;
+package com.cldellow.aspic.spi;
 
-import com.facebook.presto.spi.Plugin;
-import com.facebook.presto.spi.connector.ConnectorFactory;
-import com.google.common.collect.ImmutableList;
+import com.facebook.presto.spi.connector.ConnectorTransactionHandle;
 
-public class AspicPlugin
-        implements Plugin
+public enum AspicTransactionHandle
+        implements ConnectorTransactionHandle
 {
-    @Override
-    public Iterable<ConnectorFactory> getConnectorFactories()
-    {
-        return ImmutableList.of(new AspicConnectorFactory());
-    }
+    INSTANCE
 }

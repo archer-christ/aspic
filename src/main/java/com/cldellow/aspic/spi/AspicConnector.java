@@ -11,7 +11,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.cldellow.aspic;
+package com.cldellow.aspic.spi;
 
 import com.facebook.presto.spi.connector.Connector;
 import com.facebook.presto.spi.connector.ConnectorMetadata;
@@ -24,7 +24,7 @@ import io.airlift.log.Logger;
 
 import javax.inject.Inject;
 
-import static com.cldellow.aspic.AspicTransactionHandle.INSTANCE;
+import static com.cldellow.aspic.spi.AspicTransactionHandle.INSTANCE;
 import static java.util.Objects.requireNonNull;
 
 public class AspicConnector

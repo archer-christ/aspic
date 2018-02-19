@@ -11,12 +11,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.cldellow.aspic;
+package com.cldellow.aspic.spi;
 
-import com.facebook.presto.spi.connector.ConnectorTransactionHandle;
+import io.airlift.configuration.Config;
 
-public enum AspicTransactionHandle
-        implements ConnectorTransactionHandle
+import javax.validation.constraints.NotNull;
+
+import java.net.URI;
+
+public class AspicConfig
 {
-    INSTANCE
+    private URI metadata;
+
+    @NotNull
+    public URI getMetadata()
+    {
+        return metadata;
+    }
+
+    @Config("metadata-uri")
+    public AspicConfig setMetadata(URI metadata)
+    {
+        this.metadata = metadata;
+        return this;
+    }
 }
