@@ -29,7 +29,9 @@ public class AspicSplit
     private final String connectorId;
     private final String schemaName;
     private final String tableName;
-    private final URI uri;
+    private final String file;
+    private final long start;
+    private final long end;
     private final boolean remotelyAccessible;
     private final List<HostAddress> addresses;
 
@@ -38,11 +40,15 @@ public class AspicSplit
             @JsonProperty("connectorId") String connectorId,
             @JsonProperty("schemaName") String schemaName,
             @JsonProperty("tableName") String tableName,
-            @JsonProperty("uri") URI uri) {
+            @JsonProperty("file") String file,
+            @JsonProperty("start") long start,
+            @JsonProperty("end") long end) {
         this.schemaName = requireNonNull(schemaName, "schema name is null");
         this.connectorId = requireNonNull(connectorId, "connector id is null");
         this.tableName = requireNonNull(tableName, "table name is null");
-        this.uri = requireNonNull(uri, "uri is null");
+        this.file = requireNonNull(file, "file is null");
+        this.start = start;
+        this.end = end;
 
 //        if ("http".equalsIgnoreCase(uri.getScheme()) || "https".equalsIgnoreCase(uri.getScheme())) {
         remotelyAccessible = true;
@@ -66,9 +72,15 @@ public class AspicSplit
     }
 
     @JsonProperty
-    public URI getUri() {
-        return uri;
+    public String getFile() {
+        return file;
     }
+
+    @JsonProperty
+    public long getStart() { return start; }
+
+    @JsonProperty
+    public long getEnd() { return end; }
 
     @Override
     public boolean isRemotelyAccessible() {

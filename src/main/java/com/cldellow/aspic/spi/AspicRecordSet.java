@@ -17,23 +17,18 @@ import com.facebook.presto.spi.RecordCursor;
 import com.facebook.presto.spi.RecordSet;
 import com.facebook.presto.spi.type.Type;
 import com.google.common.collect.ImmutableList;
-import com.google.common.io.ByteSource;
-import com.google.common.io.Resources;
 
-import java.net.MalformedURLException;
 import java.util.List;
 
 import static java.util.Objects.requireNonNull;
 
 public class AspicRecordSet
-        implements RecordSet
-{
+        implements RecordSet {
     private final List<AspicColumnHandle> columnHandles;
     private final List<Type> columnTypes;
-    private final ByteSource byteSource;
+    private final AspicSplit split;
 
-    public AspicRecordSet(AspicSplit split, List<AspicColumnHandle> columnHandles)
-    {
+    public AspicRecordSet(AspicSplit split, List<AspicColumnHandle> columnHandles) {
         requireNonNull(split, "split is null");
 
         this.columnHandles = requireNonNull(columnHandles, "column handles is null");
@@ -42,24 +37,21 @@ public class AspicRecordSet
             types.add(column.getColumnType());
         }
         this.columnTypes = types.build();
-
-        try {
-            byteSource = Resources.asByteSource(split.getUri().toURL());
-        }
-        catch (MalformedURLException e) {
-            throw new RuntimeException(e);
-        }
+        this.split = split;
     }
 
     @Override
-    public List<Type> getColumnTypes()
-    {
+    public List<Type> getColumnTypes() {
         return columnTypes;
     }
 
     @Override
-    public RecordCursor cursor()
-    {
-        return new AspicRecordCursor(columnHandles, byteSource);
+    public RecordCursor cursor() {
+        return new AspicRecordCursor(
+                columnHandles,
+                split.getFile(),
+                split.getStart(),
+                split.getEnd()
+        );
     }
 }

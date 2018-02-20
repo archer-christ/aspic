@@ -13,9 +13,12 @@
  */
 package com.cldellow.aspic.spi;
 
+import com.cldellow.aspic.core.FileStats;
+import com.cldellow.aspic.core.Json;
+import com.facebook.presto.spi.type.BigintType;
+import com.facebook.presto.spi.type.IntegerType;
 import com.google.common.base.Function;
 import com.google.common.base.Supplier;
-import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -23,14 +26,12 @@ import com.google.common.io.Resources;
 import io.airlift.json.JsonCodec;
 
 import javax.inject.Inject;
-
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 import static com.google.common.collect.Iterables.transform;
 import static com.google.common.collect.Maps.transformValues;
@@ -38,83 +39,65 @@ import static com.google.common.collect.Maps.uniqueIndex;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
 
-public class AspicClient
-{
+public class AspicClient {
     /**
      * SchemaName -> (TableName -> TableMetadata)
      */
-    private final Supplier<Map<String, Map<String, AspicTable>>> schemas;
+    private final Map<String, Map<String, AspicTable>> schemas;
 
     @Inject
-    public AspicClient(AspicConfig config, JsonCodec<Map<String, List<AspicTable>>> catalogCodec)
-    {
+    public AspicClient(AspicConfig config, JsonCodec<Map<String, List<AspicTable>>> catalogCodec) {
         requireNonNull(config, "config is null");
         requireNonNull(catalogCodec, "catalogCodec is null");
 
-        schemas = Suppliers.memoize(schemasSupplier(catalogCodec, config.getMetadata()));
+        schemas = new HashMap<>();
+        Vector<AspicColumn> columns = new Vector<>();
+        columns.add(new AspicColumn("year", BigintType.BIGINT));
+
+        HashMap<String, AspicTable> deflt = new HashMap<>();
+        FileStats fs = fileStats("/tmp/tmphive/rent/big.csv.metadata");
+         deflt.put("rent",
+                new AspicTable(
+                        "rent",
+                        fs.getFields(),
+                        fs.getFile(),
+                        fs.getRowGroupOffsets()));
+        schemas.put("default", deflt);
+        //Suppliers.memoize(schemasSupplier(catalogCodec, config.getMetadata()));
     }
 
-    public Set<String> getSchemaNames()
-    {
-        return schemas.get().keySet();
+    FileStats fileStats(String s) {
+        try {
+            return Json.FILE_STATS_CODEC.fromJson(Resources.toByteArray(
+                    new URL("file:" + s)));
+
+        } catch(MalformedURLException mue) {
+            throw new RuntimeException(mue);
+        } catch(IOException ioe) {
+            throw new RuntimeException(ioe);
+        }
+    }
+    
+    public Set<String> getSchemaNames() {
+        return schemas.keySet();
     }
 
-    public Set<String> getTableNames(String schema)
-    {
+    public Set<String> getTableNames(String schema) {
         requireNonNull(schema, "schema is null");
-        Map<String, AspicTable> tables = schemas.get().get(schema);
+        Map<String, AspicTable> tables = schemas.get(schema);
         if (tables == null) {
             return ImmutableSet.of();
         }
         return tables.keySet();
     }
 
-    public AspicTable getTable(String schema, String tableName)
-    {
+    public AspicTable getTable(String schema, String tableName) {
         requireNonNull(schema, "schema is null");
         requireNonNull(tableName, "tableName is null");
-        Map<String, AspicTable> tables = schemas.get().get(schema);
+        Map<String, AspicTable> tables = schemas.get(schema);
         if (tables == null) {
             return null;
         }
         return tables.get(tableName);
-    }
-
-    private static Supplier<Map<String, Map<String, AspicTable>>> schemasSupplier(final JsonCodec<Map<String, List<AspicTable>>> catalogCodec, final URI metadataUri)
-    {
-        return () -> {
-            try {
-                return lookupSchemas(metadataUri, catalogCodec);
-            }
-            catch (IOException e) {
-                throw new UncheckedIOException(e);
-            }
-        };
-    }
-
-    private static Map<String, Map<String, AspicTable>> lookupSchemas(URI metadataUri, JsonCodec<Map<String, List<AspicTable>>> catalogCodec)
-            throws IOException
-    {
-        URL result = metadataUri.toURL();
-        String json = Resources.toString(result, UTF_8);
-        Map<String, List<AspicTable>> catalog = catalogCodec.fromJson(json);
-
-        return ImmutableMap.copyOf(transformValues(catalog, resolveAndIndexTables(metadataUri)));
-    }
-
-    private static Function<List<AspicTable>, Map<String, AspicTable>> resolveAndIndexTables(final URI metadataUri)
-    {
-        return tables -> {
-            Iterable<AspicTable> resolvedTables = transform(tables, tableUriResolver(metadataUri));
-            return ImmutableMap.copyOf(uniqueIndex(resolvedTables, AspicTable::getName));
-        };
-    }
-
-    private static Function<AspicTable, AspicTable> tableUriResolver(final URI baseUri)
-    {
-        return table -> {
-            List<URI> sources = ImmutableList.copyOf(transform(table.getSources(), baseUri::resolve));
-            return new AspicTable(table.getName(), table.getColumns(), sources);
-        };
     }
 }

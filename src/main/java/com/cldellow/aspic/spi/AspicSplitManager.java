@@ -13,17 +13,11 @@
  */
 package com.cldellow.aspic.spi;
 
-import com.facebook.presto.spi.ConnectorSession;
-import com.facebook.presto.spi.ConnectorSplit;
-import com.facebook.presto.spi.ConnectorSplitSource;
-import com.facebook.presto.spi.ConnectorTableLayoutHandle;
-import com.facebook.presto.spi.FixedSplitSource;
+import com.facebook.presto.spi.*;
 import com.facebook.presto.spi.connector.ConnectorSplitManager;
 import com.facebook.presto.spi.connector.ConnectorTransactionHandle;
 
 import javax.inject.Inject;
-
-import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -32,21 +26,18 @@ import static com.google.common.base.Preconditions.checkState;
 import static java.util.Objects.requireNonNull;
 
 public class AspicSplitManager
-        implements ConnectorSplitManager
-{
+        implements ConnectorSplitManager {
     private final String connectorId;
     private final AspicClient exampleClient;
 
     @Inject
-    public AspicSplitManager(AspicConnectorId connectorId, AspicClient exampleClient)
-    {
+    public AspicSplitManager(AspicConnectorId connectorId, AspicClient exampleClient) {
         this.connectorId = requireNonNull(connectorId, "connectorId is null").toString();
         this.exampleClient = requireNonNull(exampleClient, "client is null");
     }
 
     @Override
-    public ConnectorSplitSource getSplits(ConnectorTransactionHandle handle, ConnectorSession session, ConnectorTableLayoutHandle layout, SplitSchedulingStrategy splitSchedulingStrategy)
-    {
+    public ConnectorSplitSource getSplits(ConnectorTransactionHandle handle, ConnectorSession session, ConnectorTableLayoutHandle layout, SplitSchedulingStrategy splitSchedulingStrategy) {
         AspicTableLayoutHandle layoutHandle = (AspicTableLayoutHandle) layout;
         AspicTableHandle tableHandle = layoutHandle.getTable();
         AspicTable table = exampleClient.getTable(tableHandle.getSchemaName(), tableHandle.getTableName());
@@ -54,8 +45,19 @@ public class AspicSplitManager
         checkState(table != null, "Table %s.%s no longer exists", tableHandle.getSchemaName(), tableHandle.getTableName());
 
         List<ConnectorSplit> splits = new ArrayList<>();
-        for (URI uri : table.getSources()) {
-            splits.add(new AspicSplit(connectorId, tableHandle.getSchemaName(), tableHandle.getTableName(), uri));
+
+        for (int i = 0; i < table.getRowGroupOffsets().size(); i++) {
+            long start = table.getRowGroupOffsets().get(i);
+
+            long end = start;
+
+            if (i != table.getRowGroupOffsets().size() - 1) {
+                end = table.getRowGroupOffsets().get(i+1);
+            } else {
+                end = table.getLength();
+            }
+            System.out.println("added split: " + table.getFile() + "," + start + "-" + end);
+            splits.add(new AspicSplit(connectorId, tableHandle.getSchemaName(), tableHandle.getTableName(), table.getFile(), start, end));
         }
         Collections.shuffle(splits);
 

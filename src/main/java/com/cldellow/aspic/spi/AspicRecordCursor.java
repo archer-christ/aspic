@@ -13,18 +13,19 @@
  */
 package com.cldellow.aspic.spi;
 
+import com.cldellow.aspic.core.MmapRecord;
 import com.facebook.presto.spi.RecordCursor;
+import com.facebook.presto.spi.type.BigintType;
 import com.facebook.presto.spi.type.Type;
 import com.google.common.base.Splitter;
-import com.google.common.base.Strings;
-import com.google.common.io.ByteSource;
-import com.google.common.io.CountingInputStream;
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.util.Iterator;
+import java.io.RandomAccessFile;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 import java.util.List;
 
 import static com.facebook.presto.spi.type.BigintType.BIGINT;
@@ -32,129 +33,210 @@ import static com.facebook.presto.spi.type.BooleanType.BOOLEAN;
 import static com.facebook.presto.spi.type.DoubleType.DOUBLE;
 import static com.facebook.presto.spi.type.VarcharType.createUnboundedVarcharType;
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkState;
-import static java.nio.charset.StandardCharsets.UTF_8;
 
 public class AspicRecordCursor
-        implements RecordCursor
-{
+        implements RecordCursor {
     private static final Splitter LINE_SPLITTER = Splitter.on(",").trimResults();
 
     private final List<AspicColumnHandle> columnHandles;
     private final int[] fieldToColumnIndex;
 
-    private final Iterator<String> lines;
-    private final long totalBytes;
+    private final long start;
+    private final long end;
+    private final String file;
+    private final RandomAccessFile raf;
+    private final FileChannel channel;
+    private final byte[] bytes = new byte[65536];
+    private final MmapRecord record = new MmapRecord(bytes);
+    private final ByteBuffer buffer;
+    private int bufferIndex = 0;
+    private int bufferLength = 0;
+    private long pos;
 
-    private List<String> fields;
 
-    public AspicRecordCursor(List<AspicColumnHandle> columnHandles, ByteSource byteSource)
-    {
-        this.columnHandles = columnHandles;
+    public AspicRecordCursor(List<AspicColumnHandle> columnHandles,
+                             String file,
+                             long start,
+                             long end) {
+        try {
+            this.columnHandles = columnHandles;
 
-        fieldToColumnIndex = new int[columnHandles.size()];
-        for (int i = 0; i < columnHandles.size(); i++) {
-            AspicColumnHandle columnHandle = columnHandles.get(i);
-            fieldToColumnIndex[i] = columnHandle.getOrdinalPosition();
-        }
+            fieldToColumnIndex = new int[columnHandles.size()];
+            for (int i = 0; i < columnHandles.size(); i++) {
+                AspicColumnHandle columnHandle = columnHandles.get(i);
+                fieldToColumnIndex[i] = columnHandle.getOrdinalPosition();
+            }
 
-        try (CountingInputStream input = new CountingInputStream(byteSource.openStream())) {
-            lines = byteSource.asCharSource(UTF_8).readLines().iterator();
-            totalBytes = input.getCount();
-        }
-        catch (IOException e) {
-            throw new UncheckedIOException(e);
+            this.file = file;
+            this.start = start;
+            pos = start;
+            this.end = end;
+            this.raf = new RandomAccessFile(file, "r");
+            this.channel = raf.getChannel();
+            this.buffer = channel.map(FileChannel.MapMode.READ_ONLY, 0, end);
+            buffer.position((int) start);
+//            System.out.println("AspicRecordCursor start=" + start + ", end=" + end);
+        } catch (FileNotFoundException fnfe) {
+            throw new RuntimeException(fnfe);
+        } catch (IOException ioe) {
+            throw new RuntimeException(ioe);
         }
     }
 
     @Override
-    public long getCompletedBytes()
-    {
-        return totalBytes;
+    public long getCompletedBytes() {
+        // TODO: confirm if pos is relative to start
+        return pos - start;
     }
 
     @Override
-    public long getReadTimeNanos()
-    {
+    public long getReadTimeNanos() {
         return 0;
     }
 
     @Override
-    public Type getType(int field)
-    {
+    public Type getType(int field) {
         checkArgument(field < columnHandles.size(), "Invalid field index");
         return columnHandles.get(field).getColumnType();
     }
 
     @Override
-    public boolean advanceNextPosition()
-    {
-        if (!lines.hasNext()) {
+    public boolean advanceNextPosition() {
+        if (pos >= end)
             return false;
+
+        //      System.out.println("advanceNextPos");
+        record.reset();
+
+        // check if we need more data
+        if (bufferIndex == bufferLength) {
+            int toConsume = Math.min((int) (end - pos), bytes.length);
+            //System.out.println("toConsume 1: " + toConsume);
+            buffer.get(bytes, 0, toConsume);
+            bufferLength = toConsume;
+            bufferIndex = 0;
         }
-        String line = lines.next();
-        fields = LINE_SPLITTER.splitToList(line);
+
+        int startBufferIndex = bufferIndex;
+        record.offsets[0] = bufferIndex;
+        int field = 1;
+
+        while (bufferIndex < bufferLength && bytes[bufferIndex] != '\n') {
+            if (bytes[bufferIndex] == ',') {
+                record.offsets[field] = bufferIndex;
+                field++;
+            }
+
+            bufferIndex++;
+            pos++;
+
+            if (bufferIndex == bufferLength) {
+                // Preserve the parts we've parsed from this row.
+                int preservedLength = bufferLength - startBufferIndex;
+
+                System.arraycopy(bytes, startBufferIndex, bytes, 0, preservedLength);
+
+                int toConsume = Math.min((int) (end - pos), bytes.length - preservedLength);
+                buffer.get(bytes, preservedLength, toConsume);
+                bufferLength = preservedLength + toConsume;
+                bufferIndex = preservedLength;
+
+                for (int i = 0; i < field; i++)
+                    record.offsets[i] -= startBufferIndex;
+            }
+        }
+
+        if (bufferIndex < bufferLength && bytes[bufferIndex] == '\n') {
+            record.offsets[field] = bufferIndex;
+            pos++;
+            bufferIndex++;
+        }
 
         return true;
     }
 
-    private String getFieldValue(int field)
-    {
-        checkState(fields != null, "Cursor has not been advanced yet");
-
-        int columnIndex = fieldToColumnIndex[field];
-        return fields.get(columnIndex);
+    private String getFieldValue(int field) {
+        String rv = new String(record.bytes, record.getStart(field), record.getLength(field));
+        return rv;
     }
 
     @Override
-    public boolean getBoolean(int field)
-    {
+    public boolean getBoolean(int field) {
         checkFieldType(field, BOOLEAN);
         return Boolean.parseBoolean(getFieldValue(field));
     }
 
     @Override
-    public long getLong(int field)
-    {
+    public long getLong(int field) {
         checkFieldType(field, BIGINT);
-        return Long.parseLong(getFieldValue(field));
+        int start = record.getStart(field);
+        int len = record.getLength(field);
+        int scale = 1;
+        int rv = 0;
+        for (int i = start; i < start + len; i++) {
+            if (i == start && record.bytes[i] == '-') {
+                scale = -1;
+            } else {
+                rv = 10 * rv + record.bytes[i] - '0';
+            }
+        }
+        return scale * rv;
     }
 
     @Override
-    public double getDouble(int field)
-    {
+    public double getDouble(int field) {
         checkFieldType(field, DOUBLE);
         return Double.parseDouble(getFieldValue(field));
     }
 
     @Override
-    public Slice getSlice(int field)
-    {
+    public Slice getSlice(int field) {
         checkFieldType(field, createUnboundedVarcharType());
         return Slices.utf8Slice(getFieldValue(field));
     }
 
     @Override
-    public Object getObject(int field)
-    {
+    public Object getObject(int field) {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public boolean isNull(int field)
-    {
+    public boolean isNull(int field) {
         checkArgument(field < columnHandles.size(), "Invalid field index");
-        return Strings.isNullOrEmpty(getFieldValue(field));
+
+        int len = record.getLength(field);
+        if (len == 0)
+            return true;
+
+        if (getType(field) == BigintType.BIGINT) {
+            int start = record.getStart(field);
+            for(int i = start; i < start + len; i++) {
+                if(i == start && record.bytes[i] == '-')
+                    continue;
+
+                if(record.bytes[i] >= '0'  && record.bytes[i] <= '9')
+                    continue;
+
+                return true;
+            }
+        }
+
+        return false;
     }
 
-    private void checkFieldType(int field, Type expected)
-    {
+    private void checkFieldType(int field, Type expected) {
         Type actual = getType(field);
         checkArgument(actual.equals(expected), "Expected field %s to be type %s but is %s", field, expected, actual);
     }
 
     @Override
-    public void close()
-    {
+    public void close() {
+        try {
+            channel.close();
+            raf.close();
+        } catch (IOException ioe) {
+            throw new RuntimeException(ioe);
+        }
+
     }
 }

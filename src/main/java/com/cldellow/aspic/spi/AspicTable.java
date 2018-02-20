@@ -13,63 +13,56 @@
  */
 package com.cldellow.aspic.spi;
 
+import com.cldellow.aspic.core.Field;
 import com.facebook.presto.spi.ColumnMetadata;
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
 
-import java.net.URI;
+import java.io.File;
 import java.util.List;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Strings.isNullOrEmpty;
 import static java.util.Objects.requireNonNull;
 
-public class AspicTable
-{
+public class AspicTable {
     private final String name;
-    private final List<AspicColumn> columns;
     private final List<ColumnMetadata> columnsMetadata;
-    private final List<URI> sources;
+    private final String file;
+    private final List<Long> rowGroupOffsets;
 
-    @JsonCreator
     public AspicTable(
-            @JsonProperty("name") String name,
-            @JsonProperty("columns") List<AspicColumn> columns,
-            @JsonProperty("sources") List<URI> sources)
-    {
+            String name,
+            List<Field> fields,
+            String file,
+            List<Long> rowGroupOffsets) {
         checkArgument(!isNullOrEmpty(name), "name is null or is empty");
         this.name = requireNonNull(name, "name is null");
-        this.columns = ImmutableList.copyOf(requireNonNull(columns, "columns is null"));
-        this.sources = ImmutableList.copyOf(requireNonNull(sources, "sources is null"));
+        this.file = requireNonNull(file, "file is null");
 
         ImmutableList.Builder<ColumnMetadata> columnsMetadata = ImmutableList.builder();
-        for (AspicColumn column : this.columns) {
-            columnsMetadata.add(new ColumnMetadata(column.getName(), column.getType()));
+        for (Field field : fields) {
+            columnsMetadata.add(new ColumnMetadata(field.getName(), field.getType()));
         }
         this.columnsMetadata = columnsMetadata.build();
+        this.rowGroupOffsets = rowGroupOffsets;
     }
 
-    @JsonProperty
-    public String getName()
-    {
+    public long getLength() {
+        File f = new File(file);
+        return f.length();
+    }
+
+    public String getName() {
         return name;
     }
 
-    @JsonProperty
-    public List<AspicColumn> getColumns()
-    {
-        return columns;
+    public String getFile() {
+        return file;
     }
 
-    @JsonProperty
-    public List<URI> getSources()
-    {
-        return sources;
-    }
+    public List<Long> getRowGroupOffsets() { return rowGroupOffsets; }
 
-    public List<ColumnMetadata> getColumnsMetadata()
-    {
+    public List<ColumnMetadata> getColumnsMetadata() {
         return columnsMetadata;
     }
 }
