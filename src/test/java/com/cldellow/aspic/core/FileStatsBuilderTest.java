@@ -2,9 +2,10 @@ package com.cldellow.aspic.core;
 
 import org.junit.Test;
 
+import java.io.File;
 import java.io.PrintWriter;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
 public class FileStatsBuilderTest {
     public String path(String p) {
@@ -32,12 +33,12 @@ public class FileStatsBuilderTest {
 
     @Test
     public void easy2() {
-        FileStatsBuilder fsb = new FileStatsBuilder(path("/easy-2.csv"),"easy-2", 2);
+        FileStatsBuilder fsb = new FileStatsBuilder(path("/easy-2.csv"), "easy-2", 2);
 
         FileStats fs = fsb.stats;
         assertEquals(1, fs.getRows());
         assertEquals(1, fs.getRowGroupOffsets().size());
-        assertEquals(26L, (long)fs.getRowGroupOffsets().get(0));
+        assertEquals(26L, (long) fs.getRowGroupOffsets().get(0));
         assertEquals("foo", fs.getFields().get(0).getName());
         assertEquals("bar", fs.getFields().get(1).getName());
         assertEquals("baz", fs.getFields().get(2).getName());
@@ -54,8 +55,8 @@ public class FileStatsBuilderTest {
         FileStats fs = fsb.stats;
         assertEquals(3, fs.getRows());
         assertEquals(2, fs.getRowGroupOffsets().size());
-        assertEquals(26L, (long)fs.getRowGroupOffsets().get(0));
-        assertEquals(98L, (long)fs.getRowGroupOffsets().get(1));
+        assertEquals(26L, (long) fs.getRowGroupOffsets().get(0));
+        assertEquals(98L, (long) fs.getRowGroupOffsets().get(1));
         assertEquals("foo", fs.getFields().get(0).getName());
         assertEquals("bar", fs.getFields().get(1).getName());
         assertEquals("baz", fs.getFields().get(2).getName());
@@ -81,18 +82,20 @@ public class FileStatsBuilderTest {
 
     @Test
     public void writeMetas() throws Exception {
-        String[] files = new String[] {
+        String[] files = new String[]{
                 "/tmp/tmphive/small.csv"
-            //    ,"/tmp/tmphive/rent/big.csv"
+                //    ,"/tmp/tmphive/rent/big.csv"
         };
 
-        for(String f: files) {
-            FileStatsBuilder fsb = new FileStatsBuilder(f);
+        for (String f : files) {
+            if (new File(f).exists()) {
+                FileStatsBuilder fsb = new FileStatsBuilder(f);
 
-            String js = Json.FILE_STATS_CODEC.toJson(fsb.stats);
-            PrintWriter pw = new PrintWriter(f + ".metadata");
-            pw.println(js);
-            pw.close();
+                String js = Json.FILE_STATS_CODEC.toJson(fsb.stats);
+                PrintWriter pw = new PrintWriter(f + ".metadata");
+                pw.println(js);
+                pw.close();
+            }
         }
     }
 }
