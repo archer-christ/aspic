@@ -155,7 +155,8 @@ public class AspicRecordCursor
         return true;
     }
 
-    private String getFieldValue(int field) {
+    private String getFieldValue(int index) {
+        int field = fieldToColumnIndex[index];
         String rv = new String(record.bytes, record.getStart(field), record.getLength(field));
         return rv;
     }
