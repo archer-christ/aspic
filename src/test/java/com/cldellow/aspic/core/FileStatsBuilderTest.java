@@ -66,6 +66,16 @@ public class FileStatsBuilderTest {
 
     }
 
+    @Test
+    public void byteOrderMark() {
+        FileStatsBuilder fsb = new FileStatsBuilder(path("/bom-1.csv"));
+
+        FileStats fs = fsb.stats;
+        assertEquals(2, fs.getFields().size());
+        assertEquals("CENSUS_YEAR", fs.getFields().get(0).getName());
+        assertEquals("GEO_CODE (POR)", fs.getFields().get(1).getName());
+    }
+
     //@Test
     public void easy5() {
         FileStatsBuilder fsb = new FileStatsBuilder("/tmp/tmphive/rent/big.csv");

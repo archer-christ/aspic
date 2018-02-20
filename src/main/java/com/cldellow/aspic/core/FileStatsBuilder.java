@@ -53,6 +53,12 @@ public class FileStatsBuilder {
             //   for each column, # of NULL entries
             //   for each group of N rows, stats
 
+            if(end >= 3 && buffer.get(0) == (byte)0xEF && buffer.get(1) == (byte)0xBB && buffer.get(2) == (byte)0xBF) {
+                buffer.position(3);
+                pos = 3;
+            } else {
+                buffer.position(0);
+            }
             int row = 0;
             String[] fieldNames = null;
             Vector<Long> rowGroupOffsets = new Vector<>();
