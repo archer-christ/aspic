@@ -13,6 +13,7 @@
  */
 package com.cldellow.aspic.spi;
 
+import com.cldellow.aspic.core.CsvCursor;
 import com.cldellow.aspic.core.MmapRecord;
 import com.facebook.presto.spi.RecordCursor;
 import com.facebook.presto.spi.type.BigintType;
@@ -49,10 +50,10 @@ public class AspicRecordCursor
     private final byte[] bytes = new byte[65536];
     private final MmapRecord record = new MmapRecord(bytes);
     private final ByteBuffer buffer;
-    private int bufferIndex = 0;
-    private int bufferLength = 0;
     private long pos;
     private final boolean unixNewline;
+
+    private final CsvCursor cursor;
 
     public AspicRecordCursor(List<AspicColumnHandle> columnHandles,
                              String lineSeparator,
@@ -83,6 +84,7 @@ public class AspicRecordCursor
             this.channel = raf.getChannel();
             this.buffer = channel.map(FileChannel.MapMode.READ_ONLY, 0, end);
             buffer.position((int) start);
+            cursor = new CsvCursor(buffer, record, (int)end, unixNewline);
 //            System.out.println("AspicRecordCursor start=" + start + ", end=" + end);
         } catch (FileNotFoundException fnfe) {
             throw new RuntimeException(fnfe);
@@ -110,59 +112,10 @@ public class AspicRecordCursor
 
     @Override
     public boolean advanceNextPosition() {
-        if (pos >= end)
+        if(cursor.getPos() >= end)
             return false;
 
-        //      System.out.println("advanceNextPos");
-        record.reset();
-
-        // check if we need more data
-        if (bufferIndex == bufferLength) {
-            int toConsume = Math.min((int) (end - pos), bytes.length);
-            //System.out.println("toConsume 1: " + toConsume);
-            buffer.get(bytes, 0, toConsume);
-            bufferLength = toConsume;
-            bufferIndex = 0;
-        }
-
-        int startBufferIndex = bufferIndex;
-        record.offsets[0] = bufferIndex;
-        int field = 1;
-
-        while (bufferIndex < bufferLength && bytes[bufferIndex] != '\n') {
-            if (bytes[bufferIndex] == ',') {
-                record.offsets[field] = bufferIndex;
-                field++;
-            }
-
-            bufferIndex++;
-            pos++;
-
-            if (bufferIndex == bufferLength) {
-                // Preserve the parts we've parsed from this row.
-                int preservedLength = bufferLength - startBufferIndex;
-
-                System.arraycopy(bytes, startBufferIndex, bytes, 0, preservedLength);
-
-                int toConsume = Math.min((int) (end - pos), bytes.length - preservedLength);
-                buffer.get(bytes, preservedLength, toConsume);
-                bufferLength = preservedLength + toConsume;
-                bufferIndex = preservedLength;
-
-                for (int i = 0; i < field; i++)
-                    record.offsets[i] -= startBufferIndex;
-            }
-        }
-
-        if (bufferIndex < bufferLength && bytes[bufferIndex] == '\n') {
-            record.offsets[field] = bufferIndex;
-            if(!unixNewline)
-                record.offsets[field]--;
-
-            pos++;
-            bufferIndex++;
-        }
-
+        cursor.next();
         return true;
     }
 

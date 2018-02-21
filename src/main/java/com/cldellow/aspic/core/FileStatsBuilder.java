@@ -28,25 +28,23 @@ import java.util.Vector;
 public class FileStatsBuilder {
     public static final int DEFAULT_ROW_GROUP_SIZE = 100000;
     public final FileStats stats;
-    final byte[] bytes = new byte[65536];
-    final ByteBuffer buffer;
-    final MmapRecord record = new MmapRecord(bytes);
-    final long end;
-    int bufferIndex = 0;
-    int bufferLength = 0;
-    long pos = 0L;
-    private boolean unixNewline = true;
 
     FileStatsBuilder(String fileName) {
         this(fileName, sanitize(fileName), DEFAULT_ROW_GROUP_SIZE);
     }
 
     FileStatsBuilder(String fileName, String tableName, int rowGroupSize) {
+        final byte[] bytes = new byte[65536];
+        final ByteBuffer buffer;
+        final MmapRecord record = new MmapRecord(bytes);
+
+        boolean unixNewline = true;
+        final CsvCursor cursor;
+
         try (RandomAccessFile raf = new RandomAccessFile(fileName, "r");
              FileChannel channel = raf.getChannel();
         ) {
             buffer = channel.map(FileChannel.MapMode.READ_ONLY, 0, raf.length());
-            end = raf.length();
             // Do a pass over the file, building:
             //   offset of every Nth row start
             //   # of columns per row
@@ -54,9 +52,10 @@ public class FileStatsBuilder {
             //   for each column, # of NULL entries
             //   for each group of N rows, stats
 
-            if(end >= 3 && buffer.get(0) == (byte)0xEF && buffer.get(1) == (byte)0xBB && buffer.get(2) == (byte)0xBF) {
+            boolean byteOrderMark = false;
+            if(raf.length() >= 3 && buffer.get(0) == (byte)0xEF && buffer.get(1) == (byte)0xBB && buffer.get(2) == (byte)0xBF) {
                 buffer.position(3);
-                pos = 3;
+                byteOrderMark = true;
             } else {
                 buffer.position(0);
             }
@@ -66,11 +65,16 @@ public class FileStatsBuilder {
                 unixNewline = false;
             }
 
-            buffer.position((int)pos);
+            if(byteOrderMark)
+                buffer.position(3);
+            else
+                buffer.position(0);
+
+            cursor = new CsvCursor(buffer, record, (int)raf.length(), unixNewline);
             int row = 0;
             String[] fieldNames = null;
             Vector<Long> rowGroupOffsets = new Vector<>();
-            while (next()) {
+            while (cursor.next()) {
                 if (fieldNames == null) {
                     fieldNames = new String[record.getNumFields()];
                     for (int i = 0; i < fieldNames.length; i++) {
@@ -82,7 +86,7 @@ public class FileStatsBuilder {
 
                 // pos points at \n that terminates this row
                 if(row % rowGroupSize == 0) {
-                    long rowStart = pos;
+                    long rowStart = cursor.getPos();
                     int rowEnd = record.offsets[0];
                     for (int i = 0; i < record.offsets.length; i++)
                         if (record.offsets[i] == -1)
@@ -114,61 +118,6 @@ public class FileStatsBuilder {
         } catch (IOException ioe) {
             throw new RuntimeException(ioe);
         }
-    }
-
-    private boolean next() {
-        if (pos >= end)
-            return false;
-
-        record.reset();
-
-        // check if we need more data
-        if (bufferIndex == bufferLength) {
-            int toConsume = Math.min((int) (end - pos), bytes.length);
-            //System.out.println("toConsume 1: " + toConsume);
-            buffer.get(bytes, 0, toConsume);
-            bufferLength = toConsume;
-            bufferIndex = 0;
-        }
-
-        int startBufferIndex = bufferIndex;
-        record.offsets[0] = bufferIndex;
-        int field = 1;
-
-        while (bufferIndex < bufferLength && bytes[bufferIndex] != '\n') {
-            if (bytes[bufferIndex] == ',') {
-                record.offsets[field] = bufferIndex;
-                field++;
-            }
-
-            bufferIndex++;
-            pos++;
-
-            if (bufferIndex == bufferLength) {
-                // Preserve the parts we've parsed from this row.
-                int preservedLength = bufferLength - startBufferIndex;
-
-                System.arraycopy(bytes, startBufferIndex, bytes, 0, preservedLength);
-
-                int toConsume = Math.min((int) (end - pos), bytes.length - preservedLength);
-                buffer.get(bytes, preservedLength, toConsume);
-                bufferLength = preservedLength + toConsume;
-                bufferIndex = preservedLength;
-
-                for (int i = 0; i < field; i++)
-                    record.offsets[i] -= startBufferIndex;
-            }
-        }
-
-        if (bufferIndex < bufferLength && bytes[bufferIndex] == '\n') {
-            record.offsets[field] = bufferIndex;
-            if(!unixNewline)
-                record.offsets[field]--;
-            pos++;
-            bufferIndex++;
-        }
-
-        return true;
     }
 
     static String sanitize(String s) {

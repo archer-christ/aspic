@@ -5,11 +5,9 @@ import com.pholser.junit.quickcheck.Property;
 import com.pholser.junit.quickcheck.generator.InRange;
 import com.pholser.junit.quickcheck.runner.JUnitQuickcheck;
 import io.airlift.slice.Slice;
-import org.apache.commons.csv.CSVFormat;
-import org.apache.commons.csv.CSVParser;
-import org.apache.commons.csv.CSVPrinter;
-import org.apache.commons.csv.CSVRecord;
+import org.apache.commons.csv.*;
 import org.apache.commons.lang3.RandomStringUtils;
+import org.junit.Ignore;
 import org.junit.runner.RunWith;
 
 import java.io.File;
@@ -30,6 +28,22 @@ public class AspicRecordCursorTest {
         if (f.exists())
             f.delete();
     }
+
+    @Ignore
+    @Property(trials = 10)
+    public void testQuotedCsvSimpleUnix(
+            int seed,
+            @InRange(min = "1", max = "9") int rows,
+            @InRange(min = "1", max = "9") int cols) throws Exception {
+        doTest(seed, rows, cols, "\n",
+                CSVFormat.newFormat(',')
+                        .withQuote('"')
+                        .withRecordSeparator("\n")
+                        .withQuoteMode(QuoteMode.ALL)
+                        .withNullString(""));
+
+    }
+
 
     @Property(trials = 10)
     public void testCsvSimpleUnix(
