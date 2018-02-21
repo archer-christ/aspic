@@ -56,7 +56,14 @@ public class AspicSplitManager
             } else {
                 end = table.getLength();
             }
-            splits.add(new AspicSplit(connectorId, tableHandle.getSchemaName(), tableHandle.getTableName(), table.getFile(), start, end));
+            splits.add(new AspicSplit(
+                    connectorId,
+                    tableHandle.getSchemaName(),
+                    tableHandle.getTableName(),
+                    table.getLineSeparator(),
+                    table.getFile(),
+                    start,
+                    end));
         }
         Collections.shuffle(splits);
 

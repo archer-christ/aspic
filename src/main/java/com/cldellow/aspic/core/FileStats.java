@@ -24,6 +24,7 @@ public class FileStats {
     private final List<Field> fields;
     private final int rows;
     private final List<Long> rowGroupOffsets;
+    private final String lineSeparator;
 
     @JsonCreator
     public FileStats(
@@ -31,12 +32,14 @@ public class FileStats {
             @JsonProperty("name") String name,
             @JsonProperty("fields") List<Field> fields,
             @JsonProperty("rowGroupOffsets") List<Long> rowGroupOffsets,
-            @JsonProperty("rows") int rows) {
+            @JsonProperty("rows") int rows,
+            @JsonProperty("lineSeparator") String lineSeparator) {
         this.file = file;
         this.name = name;
         this.fields = fields;
         this.rows = rows;
         this.rowGroupOffsets = rowGroupOffsets;
+        this.lineSeparator = lineSeparator;
     }
 
 
@@ -45,6 +48,9 @@ public class FileStats {
 
     @JsonProperty
     public String getName() { return name; }
+
+    @JsonProperty
+    public String getLineSeparator() { return lineSeparator; }
 
     @JsonProperty
     public int getRows() { return rows; }

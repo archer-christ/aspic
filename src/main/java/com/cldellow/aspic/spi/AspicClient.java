@@ -60,6 +60,7 @@ public class AspicClient {
                 new AspicTable(
                         "rent",
                         fs.getFields(),
+                        fs.getLineSeparator(),
                         fs.getFile(),
                         fs.getRowGroupOffsets()));
         schemas.put("default", deflt);

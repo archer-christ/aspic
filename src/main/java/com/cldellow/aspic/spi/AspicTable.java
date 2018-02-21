@@ -28,17 +28,19 @@ public class AspicTable {
     private final String name;
     private final List<ColumnMetadata> columnsMetadata;
     private final String file;
+    private final String lineSeparator;
     private final List<Long> rowGroupOffsets;
 
     public AspicTable(
             String name,
             List<Field> fields,
+            String lineSeparator,
             String file,
             List<Long> rowGroupOffsets) {
         checkArgument(!isNullOrEmpty(name), "name is null or is empty");
         this.name = requireNonNull(name, "name is null");
         this.file = requireNonNull(file, "file is null");
-
+        this.lineSeparator = requireNonNull(lineSeparator, "lineSeparator is null");
         ImmutableList.Builder<ColumnMetadata> columnsMetadata = ImmutableList.builder();
         for (Field field : fields) {
             columnsMetadata.add(new ColumnMetadata(field.getName(), field.getType()));
@@ -55,6 +57,8 @@ public class AspicTable {
     public String getName() {
         return name;
     }
+
+    public String getLineSeparator() { return lineSeparator; }
 
     public String getFile() {
         return file;

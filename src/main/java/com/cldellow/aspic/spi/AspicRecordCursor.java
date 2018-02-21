@@ -52,12 +52,20 @@ public class AspicRecordCursor
     private int bufferIndex = 0;
     private int bufferLength = 0;
     private long pos;
-
+    private final boolean unixNewline;
 
     public AspicRecordCursor(List<AspicColumnHandle> columnHandles,
+                             String lineSeparator,
                              String file,
                              long start,
                              long end) {
+        if(lineSeparator.equals("\n"))
+            unixNewline = true;
+        else if(lineSeparator.equals("\r\n"))
+            unixNewline = false;
+        else
+            throw new IllegalArgumentException("unexpected lineSeparator: " + lineSeparator);
+
         try {
             this.columnHandles = columnHandles;
 
@@ -148,6 +156,9 @@ public class AspicRecordCursor
 
         if (bufferIndex < bufferLength && bytes[bufferIndex] == '\n') {
             record.offsets[field] = bufferIndex;
+            if(!unixNewline)
+                record.offsets[field]--;
+
             pos++;
             bufferIndex++;
         }

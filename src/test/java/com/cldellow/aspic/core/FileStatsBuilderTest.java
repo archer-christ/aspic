@@ -76,6 +76,25 @@ public class FileStatsBuilderTest {
         assertEquals("GEO_CODE (POR)", fs.getFields().get(1).getName());
     }
 
+    @Test
+    public void dosLineEndings() {
+        FileStatsBuilder fsb = new FileStatsBuilder(path("/dos-line-endings.csv"));
+
+        FileStats fs = fsb.stats;
+        assertEquals("\r\n", fs.getLineSeparator());
+        assertEquals("foo", fs.getFields().get(0).getName());
+        assertEquals("bar", fs.getFields().get(1).getName());
+        assertEquals("baz", fs.getFields().get(2).getName());
+    }
+
+    @Test
+    public void unixLineEndings() {
+        FileStatsBuilder fsb = new FileStatsBuilder(path("/easy-4.csv"));
+
+        FileStats fs = fsb.stats;
+        assertEquals("\n", fs.getLineSeparator());
+    }
+
     //@Test
     public void easy5() {
         FileStatsBuilder fsb = new FileStatsBuilder("/tmp/tmphive/rent/big.csv");

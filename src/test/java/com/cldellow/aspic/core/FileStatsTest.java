@@ -17,7 +17,8 @@ public class FileStatsTest {
                         new Field("foo", VarcharType.VARCHAR),
                         new Field("bar", BigintType.BIGINT)}),
                 ImmutableList.copyOf(new Long[]{1L, 2L}),
-                2);
+                2,
+                "\r\n");
 
         String js = Json.FILE_STATS_CODEC.toJson(fs);
         FileStats fs2 = Json.FILE_STATS_CODEC.fromJson(js);
@@ -28,5 +29,6 @@ public class FileStatsTest {
         assertEquals(fs.getRowGroupOffsets(), fs2.getRowGroupOffsets());
         assertEquals(fs.getFile(), fs2.getFile());
         assertEquals(fs.getName(), fs2.getName());
+        assertEquals(fs.getLineSeparator(), fs2.getLineSeparator());
     }
 }

@@ -35,6 +35,7 @@ public class FileStatsBuilder {
     int bufferIndex = 0;
     int bufferLength = 0;
     long pos = 0L;
+    private boolean unixNewline = true;
 
     FileStatsBuilder(String fileName) {
         this(fileName, sanitize(fileName), DEFAULT_ROW_GROUP_SIZE);
@@ -59,6 +60,13 @@ public class FileStatsBuilder {
             } else {
                 buffer.position(0);
             }
+
+            while(buffer.get() != '\n');
+            if(buffer.get(buffer.position() - 2) == '\r') {
+                unixNewline = false;
+            }
+
+            buffer.position((int)pos);
             int row = 0;
             String[] fieldNames = null;
             Vector<Long> rowGroupOffsets = new Vector<>();
@@ -66,7 +74,6 @@ public class FileStatsBuilder {
                 if (fieldNames == null) {
                     fieldNames = new String[record.getNumFields()];
                     for (int i = 0; i < fieldNames.length; i++) {
-//                        System.out.println("i=" + i + ", start=" + record.getStart(i) + ", len=" + record.getLength(i));
                         fieldNames[i] = new String(record.bytes, record.getStart(i), record.getLength(i), Charset.forName("UTF-8"));
                     }
 
@@ -98,7 +105,10 @@ public class FileStatsBuilder {
                 fields.add(field);
             }
 
-            stats = new FileStats(fileName, tableName, ImmutableList.copyOf(fields), rowGroupOffsets, row);
+            String lineSeparator = "\r\n";
+            if(unixNewline)
+                lineSeparator = "\n";
+            stats = new FileStats(fileName, tableName, ImmutableList.copyOf(fields), rowGroupOffsets, row, lineSeparator);
         } catch (FileNotFoundException fnfe) {
             throw new RuntimeException(fnfe);
         } catch (IOException ioe) {
@@ -152,6 +162,8 @@ public class FileStatsBuilder {
 
         if (bufferIndex < bufferLength && bytes[bufferIndex] == '\n') {
             record.offsets[field] = bufferIndex;
+            if(!unixNewline)
+                record.offsets[field]--;
             pos++;
             bufferIndex++;
         }
