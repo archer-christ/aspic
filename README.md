@@ -35,4 +35,6 @@ to speed things up, too.
 
 ## Format
 
+Note that row-groups are LZ4 compressed, [twice](https://groups.google.com/forum/#!msg/lz4c/DcN5SgFywwk/AVMOPri0O3gJ). Everything else is uncompresed.
+
 ![Aspic format](./format.png)

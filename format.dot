@@ -46,18 +46,44 @@ digraph structs {
   ... |
   var: column K if not null" ];
 
-  metadata [ label="<rowgroup1>4: row-group 1 offset |
+  metadata [ label="<start>4: # of row-groups (N) |
+  <rowgroup1>4: row-group 1 offset |
   ... |
-  <rowgroupN>4: row-group N offset" ];
+  <rowgroupN>4: row-group N offset |
+  <stats>stats: doc stats |
+  <rowgroup1stats>stats: row-group 1 stats |
+  ... |
+  <rowgroupNstats>stats: row-group N stats" ];
+
+  stats [ label="<start>4: # of rows |
+  2: content length of strings |
+  2: # of strings (S) |
+  str: string 1 |
+  ... |
+  str: string S |
+  <col1>col: stats for column 1 |
+  ... |
+  <colK>col: stats for column K" ];
+
+  colstats [ label="<start>4: # of nulls |
+  4: # of unique values |
+  8: minimum value |
+  8: maximum value"];
 
   aspic:preamble -> preamble:start;
   rowgroup:row1 -> row:start;
   rowgroup:rowR -> row:start;
   aspic:rowgroup1 -> rowgroup:start;
   aspic:rowgroupN -> rowgroup:start;
-  aspic:metadata -> metadata:rowgroup1;
+  aspic:metadata -> metadata:start;
 
   metadata:rowgroup1 -> aspic:rowgroup1;
   metadata:rowgroupN -> aspic:rowgroupN;
+  metadata:stats -> stats:start;
+  metadata:rowgroup1stats -> stats:start;
+  metadata:rowgroupNstats -> stats:start;
+
+  stats:col1 -> colstats:start;
+  stats:colK -> colstats:start;
 
 }
