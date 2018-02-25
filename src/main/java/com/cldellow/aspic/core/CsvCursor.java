@@ -2,6 +2,9 @@ package com.cldellow.aspic.core;
 
 import java.nio.ByteBuffer;
 
+/** Has no concept of types, for that, see {@link com.cldellow.aspic.spi.AspicRecordCursor}.
+ *  Needs to be configured appropriately, for code to infer types, see {@link CsvSchemaInferer}.
+ */
 public class CsvCursor {
     private final ByteBuffer buffer;
     private final int end;
@@ -12,12 +15,10 @@ public class CsvCursor {
     private int bufferIndex;
     private int bufferLength;
 
-    public CsvCursor(
-            ByteBuffer buffer,
-            MmapRecord record,
-            int end,
-            boolean unixNewline
-    ) {
+    public CsvCursor(ByteBuffer buffer,
+                     MmapRecord record,
+                     int end,
+                     boolean unixNewline) {
         this.buffer = buffer;
         this.end = end;
         this.unixNewline = unixNewline;

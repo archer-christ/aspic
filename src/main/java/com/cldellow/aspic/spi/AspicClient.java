@@ -13,30 +13,21 @@
  */
 package com.cldellow.aspic.spi;
 
-import com.cldellow.aspic.core.FileStats;
+import com.cldellow.aspic.core.CsvSchema;
 import com.cldellow.aspic.core.Json;
 import com.facebook.presto.spi.type.BigintType;
-import com.facebook.presto.spi.type.IntegerType;
-import com.google.common.base.Function;
-import com.google.common.base.Supplier;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.io.Resources;
 import io.airlift.json.JsonCodec;
 
 import javax.inject.Inject;
 import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.net.MalformedURLException;
-import java.net.URI;
 import java.net.URL;
 import java.util.*;
 
-import static com.google.common.collect.Iterables.transform;
 import static com.google.common.collect.Maps.transformValues;
 import static com.google.common.collect.Maps.uniqueIndex;
-import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
 
 public class AspicClient {
@@ -55,19 +46,18 @@ public class AspicClient {
         columns.add(new AspicColumn("year", BigintType.BIGINT));
 
         HashMap<String, AspicTable> deflt = new HashMap<>();
-        FileStats fs = fileStats("/tmp/tmphive/rent/big.csv.metadata");
+        CsvSchema fs = fileStats("/tmp/tmphive/rent/big.csv.metadata");
          deflt.put("rent",
                 new AspicTable(
                         "rent",
                         fs.getFields(),
-                        fs.getLineSeparator(),
-                        fs.getFile(),
-                        fs.getRowGroupOffsets()));
+                        null,
+                        new Vector<Long>()));
         schemas.put("default", deflt);
         //Suppliers.memoize(schemasSupplier(catalogCodec, config.getMetadata()));
     }
 
-    FileStats fileStats(String s) {
+    CsvSchema fileStats(String s) {
         try {
             return Json.FILE_STATS_CODEC.fromJson(Resources.toByteArray(
                     new URL("file:" + s)));

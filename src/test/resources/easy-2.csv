@@ -1,2 +1,2 @@
-foo,bar,baz,quux,frob,bob
-123,456.789,str1,2017-01-01,TRUE,str2
+foo,bar,baz,quux,frob,bob,other,other2,other3
+123,456.789,str1,2017-01-01,TRUE,2018-02-23T02:18:24Z,17179869184,30000,40000

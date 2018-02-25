@@ -49,7 +49,6 @@ public class AspicRecordSet
     public RecordCursor cursor() {
         return new AspicRecordCursor(
                 columnHandles,
-                split.getLineSeparator(),
                 split.getFile(),
                 split.getStart(),
                 split.getEnd()

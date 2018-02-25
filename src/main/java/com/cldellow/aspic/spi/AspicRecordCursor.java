@@ -51,22 +51,13 @@ public class AspicRecordCursor
     private final MmapRecord record = new MmapRecord(bytes);
     private final ByteBuffer buffer;
     private long pos;
-    private final boolean unixNewline;
 
     private final CsvCursor cursor;
 
     public AspicRecordCursor(List<AspicColumnHandle> columnHandles,
-                             String lineSeparator,
                              String file,
                              long start,
                              long end) {
-        if(lineSeparator.equals("\n"))
-            unixNewline = true;
-        else if(lineSeparator.equals("\r\n"))
-            unixNewline = false;
-        else
-            throw new IllegalArgumentException("unexpected lineSeparator: " + lineSeparator);
-
         try {
             this.columnHandles = columnHandles;
 
@@ -84,7 +75,7 @@ public class AspicRecordCursor
             this.channel = raf.getChannel();
             this.buffer = channel.map(FileChannel.MapMode.READ_ONLY, 0, end);
             buffer.position((int) start);
-            cursor = new CsvCursor(buffer, record, (int)end, unixNewline);
+            cursor = new CsvCursor(buffer, record, (int)end, true);
 //            System.out.println("AspicRecordCursor start=" + start + ", end=" + end);
         } catch (FileNotFoundException fnfe) {
             throw new RuntimeException(fnfe);

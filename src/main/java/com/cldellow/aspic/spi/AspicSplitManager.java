@@ -60,7 +60,6 @@ public class AspicSplitManager
                     connectorId,
                     tableHandle.getSchemaName(),
                     tableHandle.getTableName(),
-                    table.getLineSeparator(),
                     table.getFile(),
                     start,
                     end));

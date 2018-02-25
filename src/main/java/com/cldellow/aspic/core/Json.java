@@ -12,7 +12,7 @@ import java.util.Locale;
 import java.util.Map;
 
 public final class Json {
-    public static final JsonCodec<FileStats> FILE_STATS_CODEC;
+    public static final JsonCodec<CsvSchema> FILE_STATS_CODEC;
 
 
     static {
@@ -20,7 +20,7 @@ public final class Json {
         objectMapperProvider.setJsonDeserializers(ImmutableMap.of(Type.class, new TestingTypeDeserializer()));
         JsonCodecFactory codecFactory = new JsonCodecFactory(objectMapperProvider);
         //CATALOG_CODEC = codecFactory.mapJsonCodec(String.class, listJsonCodec(ExampleTable.class));
-        FILE_STATS_CODEC = codecFactory.jsonCodec(FileStats.class);
+        FILE_STATS_CODEC = codecFactory.jsonCodec(CsvSchema.class);
     }
 
     public static final class TestingTypeDeserializer

@@ -29,7 +29,6 @@ public class AspicSplit
     private final String connectorId;
     private final String schemaName;
     private final String tableName;
-    private final String lineSeparator;
     private final String file;
     private final long start;
     private final long end;
@@ -41,7 +40,6 @@ public class AspicSplit
             @JsonProperty("connectorId") String connectorId,
             @JsonProperty("schemaName") String schemaName,
             @JsonProperty("tableName") String tableName,
-            @JsonProperty("lineSeparator") String lineSeparator,
             @JsonProperty("file") String file,
             @JsonProperty("start") long start,
             @JsonProperty("end") long end) {
@@ -49,7 +47,6 @@ public class AspicSplit
         this.connectorId = requireNonNull(connectorId, "connector id is null");
         this.tableName = requireNonNull(tableName, "table name is null");
         this.file = requireNonNull(file, "file is null");
-        this.lineSeparator = requireNonNull(lineSeparator, "lineSeparator is null");
         this.start = start;
         this.end = end;
 
@@ -84,9 +81,6 @@ public class AspicSplit
 
     @JsonProperty
     public long getEnd() { return end; }
-
-    @JsonProperty
-    public String getLineSeparator() { return lineSeparator; }
 
     @Override
     public boolean isRemotelyAccessible() {
