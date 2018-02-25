@@ -10,7 +10,7 @@ import org.joda.time.DateTime;
 import java.nio.charset.Charset;
 import java.util.List;
 
-public class RunningStats {
+public class RunningStats implements Stats {
 
     private final List<Type> types;
     private final int[] nulls;

@@ -7,11 +7,12 @@ _This really only makes sense in conjunction with [punctual](https://github.com/
 
 A plugin for local data on Presto:
 
-- read a variety of UTF-8 CSV formats
-- with lazy field evaluation
-- using mmapped I/O
-- automatic indexing to prune unnecessary sections
-- truncated decoding of categorical fields
+- convert a variety of UTF-8 CSV formats to a binary format
+- parallelizable queries
+- lazy field evaluation
+- LZ4 compression
+- block-range indexing to skip unnecessary sections
+- infer categorical fields to store repetitive data efficiently
 
 ## What?
 
@@ -31,3 +32,7 @@ Presto also takes a defensive copy of the buffer that Hive hands it.
 
 `aspic` avoids the need for defensive copies, and implements a few other tricks
 to speed things up, too.
+
+## Format
+
+![Aspic format](./format.png)

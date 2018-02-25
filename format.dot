@@ -1,0 +1,63 @@
+digraph structs {
+  node [shape=record];
+  rankdir=LR;
+
+  aspic [ label="<preamble>preamble |
+  <rowgroup1> row-group 1 |
+  ... |
+  <rowgroupN> row-group N |
+  <metadata> metadata" ];
+
+  preamble [ label="<start>4: 'ASPC' magic number |
+  1: version |
+  4: metadata offset |
+  1: number of columns (K) |
+  1: column 1 type |
+  ... |
+  1: column K type |
+  str: column 1 name |
+  ... |
+  str: column K name |
+  2: number of column 1 enum values (E₁) |
+  str: column 1 enum value 1 |
+  ... |
+  str: column 1 enum value E₁ |
+  ... |
+  2: number of column K enum values (Eₖ) |
+  str: column K enum value 1 |
+  ... |
+  str: column K enum value Eₖ"];
+
+  rowgroup [ label="<start>4: # of rows (R) |
+  4: row 1 offset |
+  ... |
+  4: row R offset |
+  1: column 1 dict size (M₁) |
+  M₁*8: M₁ longs |
+  ... |
+  1: column K dict size (Mₖ) |
+  Mₖ*8: Mₖ longs |
+  <row1>var: row 1 |
+  ... |
+  <rowR>var: row R" ];
+
+  row [ label="<start> ⌈columns/8⌉: null bitmask |
+  var: column 1 if not null |
+  ... |
+  var: column K if not null" ];
+
+  metadata [ label="<rowgroup1>4: row-group 1 offset |
+  ... |
+  <rowgroupN>4: row-group N offset" ];
+
+  aspic:preamble -> preamble:start;
+  rowgroup:row1 -> row:start;
+  rowgroup:rowR -> row:start;
+  aspic:rowgroup1 -> rowgroup:start;
+  aspic:rowgroupN -> rowgroup:start;
+  aspic:metadata -> metadata:rowgroup1;
+
+  metadata:rowgroup1 -> aspic:rowgroup1;
+  metadata:rowgroupN -> aspic:rowgroupN;
+
+}

@@ -95,6 +95,11 @@ public class AspicWriter {
 
         dos.flush();
         dos.close();
+
+        RandomAccessFile raf = new RandomAccessFile(outputFile, "rw");
+        raf.seek(5);
+        raf.writeInt(metadataPos);
+        raf.close();
     }
 
     private void writeStats(DataOutputStream dos, RunningStats stats) throws IOException {
@@ -154,19 +159,13 @@ public class AspicWriter {
     }
 
     private void writeEnumValues(DataOutputStream dos, String enumValues[][]) throws IOException {
-        int howMany = 0;
-
-        for (int i = 0; i < enumValues.length; i++) {
-            if (enumValues[i] != null)
-                howMany++;
-        }
-
-        dos.writeByte((byte) howMany);
         for (int i = 0; i < enumValues.length; i++) {
             if (enumValues[i] != null) {
                 dos.writeShort(enumValues[i].length);
                 for (int j = 0; j < enumValues[i].length; j++)
                     writeString(dos, enumValues[i][j]);
+            } else {
+                dos.writeShort(0);
             }
         }
     }
@@ -446,7 +445,7 @@ public class AspicWriter {
 
         ByteArrayOutputStream baosMeta = new ByteArrayOutputStream();
         DataOutputStream dosMeta = new DataOutputStream(baosMeta);
-        dosMeta.write(stats.getRows());
+        dosMeta.writeInt(stats.getRows());
         for (int i = 0; i < rowOffsets.size(); i++) {
             dosMeta.write(rowOffsets.get(i));
         }
@@ -487,8 +486,9 @@ public class AspicWriter {
         int bodyOffset = lz4c.compress(baosBytes, 0, baosBytes.length, compressed, metaOffset);
 
 
+        // Compressing an lz4 stream twice actually produces noticeable compression (~40%)
+        // on the second run. See https://www.reddit.com/r/programming/comments/vyu7r/compressing_log_files_twice_improves_ratio/
         byte[] doubleCompressed = lz4c.compress(compressed, 0, metaOffset + bodyOffset);
-//        this.dos.write(compressed, 0, metaOffset + bodyOffset);
         this.dos.write(doubleCompressed);
     }
 
