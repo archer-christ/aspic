@@ -28,10 +28,15 @@ digraph structs {
   ... |
   str: column K enum value Eₖ"];
 
-  rowgroup [ label="<start>4: # of rows (R) |
+  rowgroup [ label="<start>4: uncompressed length |
+  4: single compressed length |
+  4: # of rows (R) |
   4: row 1 offset |
   ... |
   4: row R offset |
+  1: column 1 remapping |
+  ... |
+  1: column K remapping |
   1: column 1 dict size (M₁) |
   M₁*8: M₁ longs |
   ... |

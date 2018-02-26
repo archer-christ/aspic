@@ -1,5 +1,6 @@
 package com.cldellow.aspic.core;
 
+import com.clearspring.analytics.stream.cardinality.HyperLogLog;
 import com.clearspring.analytics.stream.cardinality.HyperLogLogPlus;
 import com.facebook.presto.spi.type.BooleanType;
 import com.facebook.presto.spi.type.DateType;
@@ -11,8 +12,6 @@ import java.nio.charset.Charset;
 import java.util.List;
 
 public class RunningStats implements Stats {
-
-    private final List<Type> types;
     private final int[] nulls;
     private final long[] minLong;
     private final long[] maxLong;
@@ -20,13 +19,11 @@ public class RunningStats implements Stats {
     private final float[] maxFloat;
     private final String[] minString;
     private final String[] maxString;
-    private final HyperLogLogPlus[] uniques;
+    private final HyperLogLog[] uniques;
     private final Charset UTF8 = Charset.forName("UTF-8");
     private int rows = 0;
 
-    public RunningStats(List<Type> types) {
-        this.types = types;
-        int numColumns = types.size();
+    public RunningStats(int numColumns) {
         nulls = new int[numColumns];
         minLong = new long[numColumns];
         maxLong = new long[numColumns];
@@ -34,19 +31,23 @@ public class RunningStats implements Stats {
         maxFloat = new float[numColumns];
         minString = new String[numColumns];
         maxString = new String[numColumns];
-        uniques = new HyperLogLogPlus[numColumns];
+        uniques = new HyperLogLog[numColumns];
 
         for (int i = 0; i < numColumns; i++) {
             minLong[i] = Long.MAX_VALUE;
             maxLong[i] = Long.MIN_VALUE;
             minFloat[i] = Float.MAX_VALUE;
             maxFloat[i] = Float.MIN_VALUE;
-            uniques[i] = new HyperLogLogPlus(5);
+            uniques[i] = new HyperLogLog(15);
         }
     }
 
     public void addRow() {
         rows++;
+    }
+
+    public void addNull(int col) {
+        nulls[col]++;
     }
 
     public void countUnique(int col, String s) {

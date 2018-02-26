@@ -15,10 +15,12 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 public class AspicWriter {
-    private final static LZ4Factory factory = LZ4Factory.fastestInstance();
+    final static LZ4Factory factory = LZ4Factory.fastestInstance();
     private final CsvParser parser;
     private final DataOutputStream dos;
     private final ArrayList<Integer> rowGroupOffsets = new ArrayList<>();
+    private final ArrayList<Integer> rowGroupRawLength = new ArrayList<>();
+    private final ArrayList<Integer> rowGroupCompressedLength = new ArrayList<>();
     private final ArrayList<RunningStats> rowGroupStats = new ArrayList<>();
     private final int numColumns;
     private final Charset UTF8 = Charset.forName("UTF-8");
@@ -73,13 +75,13 @@ public class AspicWriter {
         // # of columns, their types, their names.
         dos.writeByte(numColumns);
         for (int i = 0; i < numColumns; i++)
-            dos.writeByte(idForType(schema.getFields().get(i).getType()));
+            dos.writeByte(TypeSerializer.typeToId(schema.getFields().get(i).getType()));
         for (int i = 0; i < numColumns; i++)
             writeString(dos, schema.getFields().get(i).getName());
 
         writeEnumValues(dos, schema.getEnumValues());
 
-        docStats = new RunningStats(schema.getFields().stream().map(Field::getType).collect(Collectors.toList()));
+        docStats = new RunningStats(numColumns);
         writeRowGroups(row);
 
         int metadataPos = dos.size();
@@ -99,6 +101,12 @@ public class AspicWriter {
         RandomAccessFile raf = new RandomAccessFile(outputFile, "rw");
         raf.seek(5);
         raf.writeInt(metadataPos);
+
+        for(int i = 0; i < rowGroupRawLength.size(); i++) {
+            raf.seek(rowGroupOffsets.get(i));
+            raf.writeInt(rowGroupRawLength.get(i));
+            raf.writeInt(rowGroupCompressedLength.get(i));
+        }
         raf.close();
     }
 
@@ -206,7 +214,7 @@ public class AspicWriter {
                 if (currentRow != 0) {
                     writeRowGroup(groupStats, hasNulls, isNull, longs, strings, uniqueNumerics);
                 }
-                groupStats = new RunningStats(schema.getFields().stream().map(Field::getType).collect(Collectors.toList()));
+                groupStats = new RunningStats(numColumns);
                 longs = new long[rowGroupSize][];
                 hasNulls = new boolean[numColumns];
                 strings = new String[rowGroupSize][];
@@ -235,6 +243,8 @@ public class AspicWriter {
                 docStats.countUnique(i, value);
                 groupStats.countUnique(i, value);
                 if (value.isEmpty()) {
+                    docStats.addNull(i);
+                    groupStats.addNull(i);
                     isNull[groupRow][i] = true;
                     hasNulls[i] = true;
                     continue;
@@ -326,6 +336,8 @@ public class AspicWriter {
                     continue;
 
                 if (isNull[groupRow][i]) {
+                    docStats.addNull(i);
+                    groupStats.addNull(i);
                     hasNulls[i] = true;
                     continue;
                 }
@@ -354,6 +366,10 @@ public class AspicWriter {
     ) throws IOException {
         int rows = stats.getRows();
         rowGroupOffsets.add(dos.size());
+        // placeholders for uncompressed + compressed length so we can use
+        // LZ4FastDecompressor
+        dos.writeInt(0);
+        dos.writeInt(0);
         baos.reset();
         rowGroupStats.add(stats);
         System.out.print("called on " + rows + " rows: ");
@@ -447,7 +463,7 @@ public class AspicWriter {
         DataOutputStream dosMeta = new DataOutputStream(baosMeta);
         dosMeta.writeInt(stats.getRows());
         for (int i = 0; i < rowOffsets.size(); i++) {
-            dosMeta.write(rowOffsets.get(i));
+            dosMeta.writeInt(rowOffsets.get(i));
         }
         for (int i = 0; i < columnOrder.length; i++) {
             dosMeta.writeByte(columnOrder[i]);
@@ -476,20 +492,20 @@ public class AspicWriter {
         dosMeta.flush();
 
         // compress row offsets, column orders
-        int maxLength = lz4c.maxCompressedLength(dos.size() + dosMeta.size());
-
-        byte[] compressed = new byte[maxLength];
-        int metaOffset = lz4c.compress(baosMeta.toByteArray(), compressed);
-
-        // lots of needless copies here :(
+        byte[] toCompress = new byte[dosMeta.size() + dos.size()];
+        byte[] baosMetaBytes = baosMeta.toByteArray();
+        System.arraycopy(baosMetaBytes, 0, toCompress, 0, baosMetaBytes.length);
         byte[] baosBytes = baos.toByteArray();
-        int bodyOffset = lz4c.compress(baosBytes, 0, baosBytes.length, compressed, metaOffset);
-
+        System.arraycopy(baosBytes, 0, toCompress, baosMetaBytes.length, baosBytes.length);
+        int maxLength = lz4c.maxCompressedLength(toCompress.length);
 
         // Compressing an lz4 stream twice actually produces noticeable compression (~40%)
         // on the second run. See https://www.reddit.com/r/programming/comments/vyu7r/compressing_log_files_twice_improves_ratio/
-        byte[] doubleCompressed = lz4c.compress(compressed, 0, metaOffset + bodyOffset);
-        this.dos.write(doubleCompressed);
+        byte[] once = lz4c.compress(toCompress);
+        byte[] twice = lz4c.compress(once);
+        rowGroupRawLength.add(toCompress.length);
+        rowGroupCompressedLength.add(once.length);
+        this.dos.write(twice);
     }
 
     private boolean isFixedLength(CsvSchema schema, int i) {
@@ -497,34 +513,5 @@ public class AspicWriter {
                 !schema.getFields().get(i).getType().equals(VarcharType.VARCHAR);
     }
 
-    private int idForType(Type type) {
-        if (type.equals(VarcharType.VARCHAR))
-            return 1;
 
-        if (type.equals(RealType.REAL))
-            return 2;
-        if (type.equals(BooleanType.BOOLEAN))
-            return 3;
-
-        if (type.equals(IntegerType.INTEGER))
-            return 4;
-
-        if (type.equals(BigintType.BIGINT))
-            return 5;
-
-        if (type.equals(DateType.DATE))
-            return 6;
-
-        if (type.equals(TimestampType.TIMESTAMP))
-            return 7;
-
-        if (type.equals(SmallintType.SMALLINT))
-            return 8;
-
-        if (type.equals(TinyintType.TINYINT))
-            return 9;
-
-
-        throw new IllegalArgumentException("unknown: " + type);
-    }
 }
